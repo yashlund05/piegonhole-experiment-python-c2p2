@@ -1,15 +1,10 @@
-"""
-Huffman Coding Implementation
-Project 2 - Discrete Mathematics
-S. Y. B. Tech (AI/ML)
-"""
-
 import heapq
-from collections import defaultdict, Counter
+from collections import Counter
+import matplotlib.pyplot as plt
+import networkx as nx
 import random
 
 class HuffmanNode:
-    """Node class for Huffman Tree"""
     def __init__(self, symbol=None, frequency=0, left=None, right=None):
         self.symbol = symbol
         self.frequency = frequency
@@ -17,303 +12,143 @@ class HuffmanNode:
         self.right = right
     
     def __lt__(self, other):
-        """Comparison operator for priority queue"""
         return self.frequency < other.frequency
     
     def is_leaf(self):
-        """Check if node is a leaf node"""
         return self.symbol is not None
 
 class HuffmanCoding:
-    """Complete Huffman Coding implementation"""
-    
     def __init__(self, frequencies):
-        """
-        Initialize with frequency dictionary
-        Args:
-            frequencies: dict {symbol: frequency}
-        """
         self.frequencies = frequencies
         self.root = None
         self.codes = {}
-        self.reverse_codes = {}
         self.construction_steps = []
     
     def build_tree(self):
-        """
-        Build Huffman tree using greedy algorithm
-        Returns:
-            root: Root node of Huffman tree
-        """
-        # Create priority queue (min heap)
         heap = []
-        
-        # Create leaf nodes for all symbols
         for symbol, freq in self.frequencies.items():
             node = HuffmanNode(symbol=symbol, frequency=freq)
             heapq.heappush(heap, node)
-        
-        # Record initial state
-        initial = [(n.symbol, n.frequency) for n in sorted(heap, key=lambda x: x.frequency)]
-        self.construction_steps.append(f"Initial: {initial}")
-        
+        self.construction_steps.append(f"Initial: {[(n.symbol, n.frequency) for n in heap]}")
         step_num = 1
-        
-        # Build tree bottom-up
         while len(heap) > 1:
-            # Extract two minimum frequency nodes
             left = heapq.heappop(heap)
             right = heapq.heappop(heap)
-            
-            # Create new internal node
-            merged_freq = left.frequency + right.frequency
-            merged = HuffmanNode(frequency=merged_freq, left=left, right=right)
-            
-            # Add back to heap
+            merged = HuffmanNode(frequency=left.frequency + right.frequency, left=left, right=right)
             heapq.heappush(heap, merged)
-            
-            # Record step
-            left_repr = left.symbol if left.symbol else f"Internal({left.frequency})"
-            right_repr = right.symbol if right.symbol else f"Internal({right.frequency})"
             self.construction_steps.append(
-                f"Step {step_num}: Combine {left_repr}({left.frequency}) + "
-                f"{right_repr}({right.frequency}) = Internal({merged_freq})"
+                f"Step {step_num}: Combine {left.symbol if left.symbol else f'Internal({left.frequency})'}({left.frequency}) + "
+                f"{right.symbol if right.symbol else f'Internal({right.frequency})'}({right.frequency}) = Internal({merged.frequency})"
             )
             step_num += 1
-        
-        # Root is the last remaining node
         self.root = heap[0]
         return self.root
     
     def generate_codes(self, node=None, code=""):
-        """
-        Generate Huffman codes by traversing tree
-        Args:
-            node: Current node (starts at root)
-            code: Current code string
-        """
         if node is None:
             node = self.root
-        
-        # Leaf node - store code
         if node.is_leaf():
             self.codes[node.symbol] = code if code else "0"
-            self.reverse_codes[code if code else "0"] = node.symbol
             return
-        
-        # Traverse left (0) and right (1)
         if node.left:
             self.generate_codes(node.left, code + "0")
         if node.right:
             self.generate_codes(node.right, code + "1")
     
-    def encode(self, message):
-        """
-        Encode a message using Huffman codes
-        Args:
-            message: String or list of symbols
-        Returns:
-            encoded: Binary string
-        """
-        if not self.codes:
-            self.generate_codes()
-        
-        encoded = ""
-        for symbol in message:
-            if symbol in self.codes:
-                encoded += self.codes[symbol]
-            else:
-                raise ValueError(f"Symbol {symbol} not in code table")
-        
-        return encoded
-    
-    def decode(self, encoded_string):
-        """
-        Decode a binary string using Huffman tree
-        Args:
-            encoded_string: Binary string
-        Returns:
-            decoded: List of symbols
-        """
-        decoded = []
-        current = self.root
-        
-        for bit in encoded_string:
-            if bit == '0':
-                current = current.left
-            else:
-                current = current.right
-            
-            # Leaf node - found symbol
-            if current.is_leaf():
-                decoded.append(current.symbol)
-                current = self.root
-        
-        return decoded
-    
-    def calculate_average_length(self):
-        """
-        Calculate average code length
-        Formula: Σ(freq_i × len_i) / Σ(freq_i)
-        """
-        if not self.codes:
-            self.generate_codes()
-        
-        total_freq = sum(self.frequencies.values())
-        weighted_sum = sum(
-            self.frequencies[symbol] * len(self.codes[symbol]) 
-            for symbol in self.codes
-        )
-        avg_length = weighted_sum / total_freq
-        
-        return avg_length, total_freq, weighted_sum
-    
     def print_analysis(self):
-        """Print comprehensive analysis"""
         print("=" * 70)
         print("HUFFMAN CODING ANALYSIS")
         print("=" * 70)
-        
-        # Input data
         print("\n1. INPUT FREQUENCIES:")
         print("-" * 50)
         for symbol in sorted(self.frequencies.keys()):
             print(f"   Symbol {symbol}: {self.frequencies[symbol]}")
         print(f"   Total: {sum(self.frequencies.values())}")
-        
-        # Tree construction
         print("\n2. TREE CONSTRUCTION:")
         print("-" * 50)
         for step in self.construction_steps:
             print(f"   {step}")
-        
-        # Generated codes
         print("\n3. HUFFMAN CODES:")
         print("-" * 50)
         for symbol in sorted(self.codes.keys()):
             print(f"   {symbol}: {self.codes[symbol]} (length: {len(self.codes[symbol])})")
-        
-        # Average length
         avg_len, total_freq, weighted = self.calculate_average_length()
         print("\n4. AVERAGE CODE LENGTH:")
         print("-" * 50)
         print(f"   Σ(freq × length) = {weighted}")
         print(f"   Σ(freq) = {total_freq}")
         print(f"   Average = {avg_len:.4f} bits/symbol")
-        
         return avg_len
+    
+    def calculate_average_length(self):
+        total_freq = sum(self.frequencies.values())
+        weighted_sum = sum(self.frequencies[symbol] * len(self.codes[symbol]) for symbol in self.codes)
+        avg_length = weighted_sum / total_freq
+        return avg_length, total_freq, weighted_sum
 
 def compare_with_fixed_length(frequencies, huffman_avg_length):
-    """
-    Compare Huffman with fixed-length encoding
-    """
     import math
-    
     num_symbols = len(frequencies)
     fixed_length = math.ceil(math.log2(num_symbols))
-    
     print("\n5. FIXED-LENGTH ENCODING:")
     print("-" * 50)
     print(f"   Number of symbols: {num_symbols}")
     print(f"   Bits per symbol: ⌈log₂({num_symbols})⌉ = {fixed_length}")
-    
     print("\n6. COMPARISON:")
     print("-" * 50)
     print(f"   Huffman: {huffman_avg_length:.4f} bits/symbol")
     print(f"   Fixed: {fixed_length} bits/symbol")
     print(f"   Improvement: {fixed_length - huffman_avg_length:.4f} bits/symbol")
     print(f"   Compression: {(1 - huffman_avg_length/fixed_length) * 100:.2f}%")
-    
-    # Total bits
     total_freq = sum(frequencies.values())
     total_huffman = huffman_avg_length * total_freq
     total_fixed = fixed_length * total_freq
-    
     print("\n7. TOTAL ENCODING COST:")
     print("-" * 50)
     print(f"   Huffman: {total_huffman:.0f} bits")
     print(f"   Fixed: {total_fixed} bits")
     print(f"   Saved: {total_fixed - total_huffman:.0f} bits")
 
-def simulate_encoding(frequencies, codes, num_trials=10000):
-    """
-    Simulate random encoding scenarios
-    """
-    # Create weighted symbol pool
-    symbols = []
-    for symbol, freq in frequencies.items():
-        symbols.extend([symbol] * freq)
-    
-    print("\n8. SIMULATION RESULTS:")
-    print("-" * 50)
-    print(f"   Number of trials: {num_trials}")
-    
-    huffman_total = 0
-    fixed_total = 0
-    
-    for _ in range(num_trials):
-        # Random selection
-        num_select = random.randint(10, 50)
-        selected = random.choices(symbols, k=num_select)
-        
-        # Count symbols
-        counts = Counter(selected)
-        
-        # Huffman bits
-        huffman_bits = sum(counts[s] * len(codes[s]) for s in counts)
-        
-        # Fixed bits
-        fixed_bits = num_select * 2
-        
-        huffman_total += huffman_bits
-        fixed_total += fixed_bits
-    
-    avg_huffman = huffman_total / num_trials
-    avg_fixed = fixed_total / num_trials
-    
-    print(f"   Average Huffman bits: {avg_huffman:.2f}")
-    print(f"   Average Fixed bits: {avg_fixed:.2f}")
-    print(f"   Average savings: {avg_fixed - avg_huffman:.2f} bits")
-    print(f"   Compression ratio: {(1 - avg_huffman/avg_fixed) * 100:.2f}%")
+def visualize_huffman_tree_networkx(root):
+    G = nx.DiGraph()
+    labels = {}
+    pos = {}
 
-# MAIN EXECUTION
+    def add_edges(node, parent=None, label='', xpos=0, ypos=0, delta_x=1):
+        node_id = id(node)
+        if node.is_leaf():
+            node_label = f"{node.symbol}({node.frequency})\nCode: {label}"
+        else:
+            node_label = f"Internal({node.frequency})" if parent else f"Root({node.frequency})"
+        G.add_node(node_id)
+        labels[node_id] = node_label
+        pos[node_id] = (xpos, ypos)
+        if parent is not None:
+            G.add_edge(parent, node_id, weight=label[-1] if label else "")
+        if node.left:
+            add_edges(node.left, node_id, label + '0', xpos - delta_x, ypos - 1, delta_x / 2)
+        if node.right:
+            add_edges(node.right, node_id, label + '1', xpos + delta_x, ypos - 1, delta_x / 2)
+
+    add_edges(root, None, '', 0, 0, 2)
+    plt.figure(figsize=(10, 6))
+    nx.draw(G, pos, with_labels=False, arrows=False, node_color='#90e0ef', node_size=2500)
+    nx.draw_networkx_labels(G, pos, labels, font_size=9, font_weight='bold')
+    edge_labels = { (u,v): d['weight'] for u,v,d in G.edges(data=True) }
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=9)
+    plt.title("Huffman Tree Structure (NetworkX)")
+    plt.axis('off')
+    plt.tight_layout()
+    plt.show()
+
 if __name__ == "__main__":
-    # Given frequencies
-    frequencies = {
-        'X': 10,
-        'Y': 15,
-        'Z': 30,
-        'W': 45
-    }
-    
-    # Create Huffman coding instance
+    frequencies = {'X': 10, 'Y': 15, 'Z': 30, 'W': 45}
     huffman = HuffmanCoding(frequencies)
-    
-    # Build tree
     huffman.build_tree()
-    
-    # Generate codes
     huffman.generate_codes()
-    
-    # Print analysis
     avg_length = huffman.print_analysis()
-    
-    # Compare with fixed-length
     compare_with_fixed_length(frequencies, avg_length)
-    
-    # Simulation
-    simulate_encoding(frequencies, huffman.codes)
-    
-    # Example encoding/decoding
-    print("\n9. ENCODING/DECODING EXAMPLE:")
-    print("-" * 50)
-    message = ['W', 'X', 'Y', 'Z', 'W', 'Z']
-    encoded = huffman.encode(message)
-    decoded = huffman.decode(encoded)
-    
-    print(f"   Original: {message}")
-    print(f"   Encoded: {encoded} ({len(encoded)} bits)")
-    print(f"   Decoded: {decoded}")
-    print(f"   Match: {message == decoded}")
-    
-    print("\n" + "=" * 70)
+
+    # Visualize the Huffman tree using NetworkX + Matplotlib method
+    visualize_huffman_tree_networkx(huffman.root)
+
